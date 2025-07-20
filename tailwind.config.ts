@@ -61,7 +61,26 @@ export default {
 					'accent-foreground': 'hsl(var(--sidebar-accent-foreground))',
 					border: 'hsl(var(--sidebar-border))',
 					ring: 'hsl(var(--sidebar-ring))'
+				},
+				wheel: {
+					1: 'hsl(var(--wheel-color-1))',
+					2: 'hsl(var(--wheel-color-2))',
+					3: 'hsl(var(--wheel-color-3))',
+					4: 'hsl(var(--wheel-color-4))',
+					5: 'hsl(var(--wheel-color-5))',
+					6: 'hsl(var(--wheel-color-6))',
+					7: 'hsl(var(--wheel-color-7))',
+					8: 'hsl(var(--wheel-color-8))'
 				}
+			},
+			backgroundImage: {
+				'gradient-wheel': 'var(--gradient-wheel)',
+				'gradient-background': 'var(--gradient-background)',
+				'gradient-card': 'var(--gradient-card)'
+			},
+			boxShadow: {
+				'glow': 'var(--shadow-glow)',
+				'winner': 'var(--shadow-winner)'
 			},
 			borderRadius: {
 				lg: 'var(--radius)',

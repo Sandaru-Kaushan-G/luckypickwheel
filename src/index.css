@@ -8,33 +8,56 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    --background: 240 10% 3.9%;
+    --foreground: 0 0% 98%;
 
-    --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card: 240 10% 3.9%;
+    --card-foreground: 0 0% 98%;
 
-    --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover: 240 10% 3.9%;
+    --popover-foreground: 0 0% 98%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 98%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 240 3.7% 15.9%;
+    --secondary-foreground: 0 0% 98%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 240 3.7% 15.9%;
+    --muted-foreground: 240 5% 64.9%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 240 3.7% 15.9%;
+    --accent-foreground: 0 0% 98%;
 
     --destructive: 0 84.2% 60.2%;
     --destructive-foreground: 210 40% 98%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --border: 240 3.7% 15.9%;
+    --input: 240 3.7% 15.9%;
+    --ring: 262 83% 58%;
+
+    /* Wheel colors - vibrant rainbow palette */
+    --wheel-color-1: 0 84% 60%;     /* Red */
+    --wheel-color-2: 25 95% 53%;    /* Orange */
+    --wheel-color-3: 45 93% 58%;    /* Yellow */
+    --wheel-color-4: 120 60% 50%;   /* Green */
+    --wheel-color-5: 200 95% 55%;   /* Blue */
+    --wheel-color-6: 262 83% 58%;   /* Purple */
+    --wheel-color-7: 310 60% 55%;   /* Pink */
+    --wheel-color-8: 175 70% 45%;   /* Teal */
+
+    /* Gradients */
+    --gradient-wheel: linear-gradient(135deg, hsl(var(--primary)), hsl(262 83% 70%));
+    --gradient-background: radial-gradient(ellipse at top, hsl(240 10% 8%), hsl(240 10% 3.9%));
+    --gradient-card: linear-gradient(145deg, hsl(240 10% 6%), hsl(240 10% 10%));
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Effects */
+    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.3);
+    --shadow-winner: 0 0 50px hsl(45 93% 58% / 0.5);
 
     --radius: 0.5rem;
 
@@ -100,6 +123,82 @@ All colors MUST be HSL.
   }
 
   body {
-    @apply bg-background text-foreground;
+    background: var(--gradient-background);
+    @apply text-foreground min-h-screen;
+  }
+}
+
+@layer components {
+  /* Wheel animations */
+  .wheel-spin {
+    animation: wheelSpin var(--spin-duration, 3s) cubic-bezier(0.23, 1, 0.32, 1) forwards;
+  }
+
+  .winner-celebration {
+    animation: celebrate 0.6s ease-out;
+  }
+
+  .pulse-glow {
+    animation: pulseGlow 2s infinite;
+  }
+
+  /* Winner text animation */
+  .winner-text {
+    animation: winnerReveal 0.8s cubic-bezier(0.68, -0.55, 0.265, 1.55) forwards;
+  }
+}
+
+@layer utilities {
+  .text-gradient {
+    background: var(--gradient-wheel);
+    background-clip: text;
+    -webkit-background-clip: text;
+    -webkit-text-fill-color: transparent;
+  }
+}
+
+@keyframes wheelSpin {
+  0% {
+    transform: rotate(0deg);
+  }
+  100% {
+    transform: rotate(var(--final-rotation, 1440deg));
+  }
+}
+
+@keyframes celebrate {
+  0% {
+    transform: scale(0.8);
+    opacity: 0;
+  }
+  50% {
+    transform: scale(1.1);
+  }
+  100% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+@keyframes pulseGlow {
+  0%, 100% {
+    box-shadow: var(--shadow-glow);
+  }
+  50% {
+    box-shadow: 0 0 60px hsl(var(--primary) / 0.6);
+  }
+}
+
+@keyframes winnerReveal {
+  0% {
+    transform: translateY(30px) scale(0.9);
+    opacity: 0;
+  }
+  60% {
+    transform: translateY(-10px) scale(1.05);
+  }
+  100% {
+    transform: translateY(0) scale(1);
+    opacity: 1;
   }
 }
