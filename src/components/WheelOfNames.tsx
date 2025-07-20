@@ -2,6 +2,7 @@ import React, { useState, useCallback, useRef, useEffect } from 'react';
 import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Progress } from '@/components/ui/progress';
 import { Trash2, Plus, RotateCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Navbar from './Navbar';
@@ -30,6 +31,12 @@ const WheelOfNames: React.FC = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [currentRotation, setCurrentRotation] = useState(0);
+  const [animationType, setAnimationType] = useState<'classic' | 'elastic' | 'bounce' | 'smooth'>('elastic');
+  const [showConfetti, setShowConfetti] = useState(false);
+  const [highlightedSegment, setHighlightedSegment] = useState<number | null>(null);
+  const [spinIntensity, setSpinIntensity] = useState<'gentle' | 'normal' | 'wild'>('normal');
+  const [spinProgress, setSpinProgress] = useState(0);
+  const [isResetting, setIsResetting] = useState(false);
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check if user has a saved preference, otherwise default to dark
     if (typeof window !== 'undefined') {
@@ -40,6 +47,7 @@ const WheelOfNames: React.FC = () => {
   });
   const wheelRef = useRef<SVGGElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+  const confettiRef = useRef<HTMLDivElement>(null);
 
   // Apply theme to document
   useEffect(() => {
@@ -127,11 +135,45 @@ const WheelOfNames: React.FC = () => {
 
   // Reset wheel
   const resetWheel = useCallback(() => {
+    // Start reset animation
+    setIsResetting(true);
+    
+    // Reset wheel position and winner
     setCurrentRotation(0);
     setWinner(null);
+    
+    // Reset animation states
+    setIsSpinning(false);
+    setShowConfetti(false);
+    setHighlightedSegment(null);
+    setSpinProgress(0);
+    
+    // Reset animation settings to defaults
+    setAnimationType('elastic');
+    setSpinIntensity('normal');
+    
+    // Reset wheel transform and remove any animation classes
     if (wheelRef.current) {
       wheelRef.current.style.transform = 'rotate(0deg)';
+      wheelRef.current.classList.remove('wheel-spin', 'wheel-spin-elastic', 'wheel-spin-bounce', 'wheel-spin-smooth');
+      // Clear any CSS custom properties
+      wheelRef.current.style.removeProperty('--spin-duration');
+      wheelRef.current.style.removeProperty('--final-rotation');
     }
+
+    // Clear any running intervals or timeouts
+    // (The component will handle cleanup through useEffect)
+    
+    // Show reset confirmation
+    toast({
+      title: "🔄 Wheel Reset",
+      description: "All settings and animations have been reset to default.",
+    });
+
+    // End reset animation after a short delay
+    setTimeout(() => {
+      setIsResetting(false);
+    }, 600);
   }, []);
 
   // Spin the wheel
@@ -147,50 +189,92 @@ const WheelOfNames: React.FC = () => {
 
     setIsSpinning(true);
     setWinner(null);
+    setShowConfetti(false);
+    setHighlightedSegment(null);
 
     // Play spin sound
     playSound(200, 0.1);
 
-    // Calculate random spin (multiple full rotations + random angle)
-    const minSpins = 3;
-    const maxSpins = 6;
-    const spins = Math.random() * (maxSpins - minSpins) + minSpins;
+    // Calculate spin parameters based on intensity
+    const intensityConfig = {
+      gentle: { minSpins: 2, maxSpins: 4, duration: '4s' },
+      normal: { minSpins: 3, maxSpins: 6, duration: '3s' },
+      wild: { minSpins: 5, maxSpins: 8, duration: '5s' }
+    };
+
+    const config = intensityConfig[spinIntensity];
+    const spins = Math.random() * (config.maxSpins - config.minSpins) + config.minSpins;
     const randomAngle = Math.random() * 360;
     const totalRotation = currentRotation + (spins * 360) + randomAngle;
 
-    // Apply rotation animation
+    // Apply different animation types
     if (wheelRef.current) {
-      wheelRef.current.style.setProperty('--spin-duration', '3s');
+      wheelRef.current.style.setProperty('--spin-duration', config.duration);
       wheelRef.current.style.setProperty('--final-rotation', `${totalRotation}deg`);
-      wheelRef.current.classList.add('wheel-spin');
+      
+      // Remove existing animation classes
+      wheelRef.current.classList.remove('wheel-spin', 'wheel-spin-elastic', 'wheel-spin-bounce', 'wheel-spin-smooth');
+      
+      // Add animation class based on type
+      const animationClass = `wheel-spin-${animationType}`;
+      wheelRef.current.classList.add(animationClass);
     }
+
+    // Add segment highlighting during spin
+    const highlightInterval = setInterval(() => {
+      setHighlightedSegment(Math.floor(Math.random() * names.length));
+    }, 100);
+
+    // Calculate animation duration
+    const animationDuration = parseFloat(config.duration) * 1000;
+
+    // Progress tracking
+    const progressInterval = setInterval(() => {
+      setSpinProgress((prev) => {
+        const newProgress = prev + (100 / (animationDuration / 100));
+        return newProgress > 100 ? 100 : newProgress;
+      });
+    }, 100);
 
     // Calculate winner after animation
     setTimeout(() => {
+      clearInterval(highlightInterval);
+      clearInterval(progressInterval);
+      setSpinProgress(0);
+      
       const normalizedAngle = (360 - (totalRotation % 360)) % 360;
       const segmentAngle = 360 / names.length;
       const winnerIndex = Math.floor(normalizedAngle / segmentAngle);
       const winnerName = names[winnerIndex];
 
       setWinner(winnerName);
+      setHighlightedSegment(winnerIndex);
       setCurrentRotation(totalRotation);
-      setIsSpinning(false);
+      setShowConfetti(true);
+      
+      // Hide confetti after 5 seconds
+      setTimeout(() => setShowConfetti(false), 5000);
+      
+      // Winner celebration sequence
+      setTimeout(() => {
+        setIsSpinning(false);
+        playSound(800, 0.3);
+        
+        toast({
+          title: "🎉 We have a winner!",
+          description: `${winnerName} has been selected!`,
+        });
+      }, 500);
 
-      // Play winner sound
-      setTimeout(() => playSound(800, 0.3), 100);
-
-      toast({
-        title: "🎉 We have a winner!",
-        description: `${winnerName} has been selected!`,
-      });
-
-      // Remove animation class
-      if (wheelRef.current) {
-        wheelRef.current.classList.remove('wheel-spin');
-        wheelRef.current.style.transform = `rotate(${totalRotation}deg)`;
-      }
-    }, 3000);
-  }, [names, currentRotation, playSound]);
+      // Remove animation class and set final rotation
+      setTimeout(() => {
+        if (wheelRef.current) {
+          wheelRef.current.classList.remove('wheel-spin', 'wheel-spin-elastic', 'wheel-spin-bounce', 'wheel-spin-smooth');
+          wheelRef.current.style.transform = `rotate(${totalRotation}deg)`;
+        }
+      }, 100);
+    }, animationDuration);
+  }, [names, currentRotation, playSound, animationType, spinIntensity]);
 
   // Generate SVG path for pie segment
   const createPath = (startAngle: number, endAngle: number, radius: number = 150): string => {
@@ -310,7 +394,7 @@ const WheelOfNames: React.FC = () => {
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
           {/* Names Management */}
-          <Card className="p-6 bg-gradient-card">
+          <Card className="p-6 bg-gradient-card interactive-hover">
             <h2 className="text-2xl font-bold mb-4">Manage Names</h2>
             
             {/* Add Name Input */}
@@ -365,7 +449,9 @@ const WheelOfNames: React.FC = () => {
           </Card>
 
           {/* Wheel */}
-          <Card className="p-6 bg-gradient-card">
+          <Card className={`p-6 bg-gradient-card interactive-hover ${
+            isResetting ? 'reset-flash' : ''
+          }`}>
             <div className="text-center">
               {/* Winner Display */}
               {winner && (
@@ -377,9 +463,28 @@ const WheelOfNames: React.FC = () => {
                 </div>
               )}
 
+              {/* Spinning Progress */}
+              {isSpinning && (
+                <div className="mb-6">
+                  <div className="flex items-center justify-center gap-3 mb-2">
+                    <span className="text-sm font-medium">Spinning...</span>
+                    <span className="text-sm text-muted-foreground">{Math.round(spinProgress)}%</span>
+                  </div>
+                  <Progress value={spinProgress} className="w-full max-w-xs mx-auto" />
+                </div>
+              )}
+
               {/* Wheel SVG */}
-              <div className="relative mx-auto w-80 h-80 mb-6">
-                <svg width="320" height="320" className="mx-auto">
+              <div className={`relative mx-auto w-80 h-80 mb-6 ${
+                !isSpinning ? 'wheel-float' : ''
+              }`}>
+                {/* Hint text for center button */}
+                {names.length >= 2 && !isSpinning && !winner && (
+                  <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-sm text-muted-foreground animate-pulse">
+                    Click center to spin
+                  </div>
+                )}
+                <svg width="320" height="320" className="mx-auto drop-shadow-2xl">
                   {/* Wheel segments */}
                   <g ref={wheelRef} style={{ transformOrigin: '160px 160px' }}>
                     {segments.map((segment, index) => (
@@ -390,7 +495,14 @@ const WheelOfNames: React.FC = () => {
                           fill={segment.color}
                           stroke="#1a1a1a"
                           strokeWidth="2"
-                          className="transition-all duration-200"
+                          className={`transition-all duration-200 ${
+                            highlightedSegment === index ? 'segment-highlight' : ''
+                          }`}
+                          style={{
+                            filter: highlightedSegment === index 
+                              ? 'brightness(1.3) drop-shadow(0 0 15px currentColor)' 
+                              : 'brightness(1)'
+                          }}
                         />
                         {/* Text */}
                         <text
@@ -401,9 +513,13 @@ const WheelOfNames: React.FC = () => {
                           fill="white"
                           fontSize="14"
                           fontWeight="bold"
-                          className="pointer-events-none select-none"
+                          className={`pointer-events-none select-none transition-all duration-200 ${
+                            highlightedSegment === index ? 'animate-pulse' : ''
+                          }`}
                           style={{
-                            textShadow: '1px 1px 2px rgba(0,0,0,0.8)'
+                            textShadow: highlightedSegment === index 
+                              ? '2px 2px 8px rgba(0,0,0,0.9)' 
+                              : '1px 1px 2px rgba(0,0,0,0.8)'
                           }}
                         >
                           {segment.name}
@@ -412,15 +528,85 @@ const WheelOfNames: React.FC = () => {
                     ))}
                   </g>
                   
-                  {/* Center circle */}
-                  <circle
-                    cx="160"
-                    cy="160"
-                    r="20"
-                    fill="hsl(var(--primary))"
-                    stroke="#1a1a1a"
-                    strokeWidth="3"
-                  />
+                  {/* Center spin button */}
+                  <g 
+                    className={`cursor-pointer transition-all duration-300 ${
+                      names.length < 2 ? 'opacity-50 cursor-not-allowed' : 'spin-button-hover'
+                    } ${isSpinning ? 'spin-button-active' : ''}`}
+                    onClick={names.length >= 2 && !isSpinning ? spinWheel : undefined}
+                  >
+                    {/* Main button circle */}
+                    <circle
+                      cx="160"
+                      cy="160"
+                      r="35"
+                      fill="hsl(var(--primary))"
+                      stroke="#1a1a1a"
+                      strokeWidth="3"
+                      className="transition-all duration-300"
+                      style={{
+                        filter: isSpinning 
+                          ? 'brightness(1.1) drop-shadow(0 0 20px hsl(var(--primary) / 0.6))' 
+                          : 'drop-shadow(0 0 10px rgba(0,0,0,0.3))'
+                      }}
+                    />
+                    
+                    {/* Animated ring when spinning */}
+                    <circle
+                      cx="160"
+                      cy="160"
+                      r="30"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.4)"
+                      strokeWidth="3"
+                      strokeDasharray="94 94"
+                      className={isSpinning ? 'spin-ring' : 'opacity-60'}
+                      style={{
+                        transformOrigin: '160px 160px'
+                      }}
+                    />
+                    
+                    {/* Inner glow circle */}
+                    <circle
+                      cx="160"
+                      cy="160"
+                      r="25"
+                      fill="none"
+                      stroke="rgba(255,255,255,0.2)"
+                      strokeWidth="1"
+                      className={isSpinning ? 'animate-pulse' : ''}
+                    />
+                    
+                    {/* Spin text */}
+                    <text
+                      x="160"
+                      y="165"
+                      textAnchor="middle"
+                      dominantBaseline="middle"
+                      fill="white"
+                      fontSize="14"
+                      fontWeight="bold"
+                      className={`pointer-events-none select-none transition-all duration-300 ${
+                        isSpinning ? 'animate-pulse' : ''
+                      }`}
+                      style={{
+                        textShadow: '2px 2px 4px rgba(0,0,0,0.8)',
+                        letterSpacing: '1px'
+                      }}
+                    >
+                      {isSpinning ? '•••' : 'SPIN'}
+                    </text>
+                    
+                    {/* Decorative dots around the button */}
+                    {!isSpinning && names.length >= 2 && (
+                      <>
+                        <circle cx="160" cy="118" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" />
+                        <circle cx="202" cy="160" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '0.5s'}} />
+                        <circle cx="160" cy="202" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1s'}} />
+                        <circle cx="118" cy="160" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1.5s'}} />
+                      </>
+                    )}
+                  </g>
                   
                   {/* Pointer */}
                   <polygon
@@ -432,13 +618,92 @@ const WheelOfNames: React.FC = () => {
                 </svg>
               </div>
 
+              {/* Animation Controls */}
+              <div className={`mb-6 space-y-4 transition-all duration-500 ${
+                isResetting ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+              }`}>
+                <div className="text-center">
+                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                    Animation Style {isResetting && '(Resetting...)'}
+                  </h3>
+                  <div className="flex justify-center gap-2 flex-wrap">
+                    {[
+                      { type: 'classic', icon: '⚙️' },
+                      { type: 'elastic', icon: '🎯' },
+                      { type: 'bounce', icon: '🏀' },
+                      { type: 'smooth', icon: '✨' }
+                    ].map(({ type, icon }) => (
+                      <Button
+                        key={type}
+                        variant={animationType === type ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setAnimationType(type as any)}
+                        disabled={isSpinning || isResetting}
+                        className={`capitalize transition-all duration-300 ${
+                          isResetting && animationType !== type ? 'animate-pulse' : ''
+                        }`}
+                      >
+                        {icon} {type}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+                
+                <div className="text-center">
+                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                    Spin Intensity {isResetting && '(Resetting...)'}
+                  </h3>
+                  <div className="flex justify-center gap-2">
+                    {['gentle', 'normal', 'wild'].map((intensity) => (
+                      <Button
+                        key={intensity}
+                        variant={spinIntensity === intensity ? 'default' : 'outline'}
+                        size="sm"
+                        onClick={() => setSpinIntensity(intensity as any)}
+                        disabled={isSpinning || isResetting}
+                        className={`capitalize transition-all duration-300 ${
+                          isResetting && spinIntensity !== intensity ? 'animate-pulse' : ''
+                        }`}
+                      >
+                        {intensity === 'gentle' && '🐢'}
+                        {intensity === 'normal' && '⚡'}
+                        {intensity === 'wild' && '🚀'}
+                        {' '}{intensity}
+                      </Button>
+                    ))}
+                  </div>
+                </div>
+              </div>
+
+              {/* Confetti Effect */}
+              {showConfetti && (
+                <div className="absolute inset-0 pointer-events-none overflow-hidden" ref={confettiRef}>
+                  {Array.from({ length: 50 }).map((_, i) => (
+                    <div
+                      key={i}
+                      className="absolute confetti"
+                      style={{
+                        left: `${Math.random() * 100}%`,
+                        animationDelay: `${Math.random() * 3}s`,
+                        animationDuration: `${2 + Math.random() * 2}s`,
+                        backgroundColor: `hsl(${Math.random() * 360}, 70%, 60%)`,
+                        width: `${4 + Math.random() * 6}px`,
+                        height: `${4 + Math.random() * 6}px`,
+                        borderRadius: Math.random() > 0.5 ? '50%' : '0'
+                      }}
+                    />
+                  ))}
+                </div>
+              )}
+
               {/* Controls */}
               <div className="flex gap-4 justify-center">
                 <Button
                   onClick={spinWheel}
                   disabled={isSpinning || names.length < 2}
+                  variant="outline"
                   size="lg"
-                  className="min-w-32 pulse-glow"
+                  className="min-w-32"
                 >
                   {isSpinning ? 'Spinning...' : 'Spin Wheel'}
                 </Button>
@@ -446,11 +711,12 @@ const WheelOfNames: React.FC = () => {
                 <Button
                   variant="outline"
                   onClick={resetWheel}
-                  disabled={isSpinning}
+                  disabled={isSpinning || isResetting}
                   size="lg"
+                  className={isResetting ? 'button-press' : ''}
                 >
-                  <RotateCcw className="w-4 h-4 mr-2" />
-                  Reset
+                  <RotateCcw className={`w-4 h-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+                  {isResetting ? 'Resetting...' : 'Reset'}
                 </Button>
               </div>
             </div>

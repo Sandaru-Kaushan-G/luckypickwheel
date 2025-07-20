@@ -48,7 +48,7 @@ const Navbar: React.FC<NavbarProps> = ({
           {/* Left side - Website name */}
           <div className="flex items-center">
             <h1 className="text-xl font-bold text-gradient">
-              Wheel of Names
+              PickWheel
             </h1>
           </div>
 
