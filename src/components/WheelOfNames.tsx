@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Trash2, Plus, RotateCcw } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
+import Navbar from './Navbar';
 
 interface WheelSegment {
   name: string;
@@ -29,6 +30,7 @@ const WheelOfNames: React.FC = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [currentRotation, setCurrentRotation] = useState(0);
+  const [isDarkMode, setIsDarkMode] = useState(true);
   const wheelRef = useRef<SVGGElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
 
@@ -199,18 +201,78 @@ const WheelOfNames: React.FC = () => {
     }
   };
 
+  // Navbar handlers
+  const handleCreateNewWheel = () => {
+    setNames([]);
+    setWinner(null);
+    resetWheel();
+    toast({
+      title: "New wheel created",
+      description: "Start fresh with a new wheel!",
+    });
+  };
+
+  const handleSaveAs = () => {
+    const data = { names, winner, timestamp: new Date().toISOString() };
+    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `wheel-of-names-${Date.now()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast({
+      title: "Wheel saved",
+      description: "Your wheel has been saved as a JSON file.",
+    });
+  };
+
+  const handleSettings = () => {
+    toast({
+      title: "Settings",
+      description: "Settings panel coming soon!",
+    });
+  };
+
+  const handleShare = () => {
+    if (navigator.share) {
+      navigator.share({
+        title: 'Wheel of Names',
+        text: `Check out my wheel with ${names.length} names!`,
+        url: window.location.href,
+      });
+    } else {
+      navigator.clipboard.writeText(window.location.href);
+      toast({
+        title: "Link copied",
+        description: "Wheel link has been copied to clipboard.",
+      });
+    }
+  };
+
   return (
-    <div className="min-h-screen p-4 lg:p-8">
-      <div className="max-w-6xl mx-auto">
-        {/* Header */}
-        <div className="text-center mb-8">
-          <h1 className="text-4xl lg:text-6xl font-bold text-gradient mb-4">
-            Wheel of Names
-          </h1>
-          <p className="text-muted-foreground text-lg">
-            Add names and spin the wheel to pick a random winner!
-          </p>
-        </div>
+    <div className="min-h-screen">
+      <Navbar
+        currentWheelName="My Wheel"
+        isDarkMode={isDarkMode}
+        onToggleDarkMode={() => setIsDarkMode(!isDarkMode)}
+        onCreateNewWheel={handleCreateNewWheel}
+        onSaveAs={handleSaveAs}
+        onSettings={handleSettings}
+        onShare={handleShare}
+      />
+      
+      <div className="p-4 lg:p-8">
+        <div className="max-w-6xl mx-auto">
+          {/* Header */}
+          <div className="text-center mb-8">
+            <h1 className="text-4xl lg:text-6xl font-bold text-gradient mb-4">
+              Spin to Win!
+            </h1>
+            <p className="text-muted-foreground text-lg">
+              Add names and spin the wheel to pick a random winner!
+            </p>
+          </div>
 
         <div className="grid lg:grid-cols-2 gap-8 items-start">
           {/* Names Management */}
@@ -359,6 +421,7 @@ const WheelOfNames: React.FC = () => {
               </div>
             </div>
           </Card>
+          </div>
         </div>
       </div>
     </div>
