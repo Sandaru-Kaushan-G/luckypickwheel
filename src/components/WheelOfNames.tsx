@@ -3,7 +3,11 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Plus, RotateCcw, Maximize, Minimize, Volume2, VolumeX, Volume1 } from 'lucide-react';
+import { Slider } from '@/components/ui/slider';
+import { Label } from '@/components/ui/label';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '@/components/ui/dialog';
+import { Separator } from '@/components/ui/separator';
+import { Trash2, Plus, RotateCcw, Maximize, Minimize, Volume2, VolumeX, Volume1, Clock } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Navbar from './Navbar';
 
@@ -41,6 +45,15 @@ const WheelOfNames: React.FC = () => {
   const [volume, setVolume] = useState(0.5); // Volume from 0 to 1
   const [isMuted, setIsMuted] = useState(false);
   const [spinTimer, setSpinTimer] = useState(0); // Timer for spin duration in seconds
+  const [isSettingsOpen, setIsSettingsOpen] = useState(false); // Settings dialog state
+  const [spinDurationLimit, setSpinDurationLimit] = useState(() => {
+    // Check if user has a saved preference, otherwise default to 10 seconds
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('spinDurationLimit');
+      return saved ? parseInt(saved) : 10;
+    }
+    return 10;
+  }); // Max spin duration in seconds
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check if user has a saved preference, otherwise default to dark
     if (typeof window !== 'undefined') {
@@ -64,6 +77,11 @@ const WheelOfNames: React.FC = () => {
     }
     localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
   }, [isDarkMode]);
+
+  // Save spin duration limit to localStorage
+  useEffect(() => {
+    localStorage.setItem('spinDurationLimit', spinDurationLimit.toString());
+  }, [spinDurationLimit]);
 
   // Create wheel segments based on names
   const createSegments = useCallback((): WheelSegment[] => {
@@ -335,11 +353,11 @@ const WheelOfNames: React.FC = () => {
       });
     }, 100);
 
-    // Timer tracking (up to 60 seconds max)
+    // Timer tracking (limited by settings)
     const timerInterval = setInterval(() => {
       setSpinTimer((prev) => {
         const newTimer = prev + 0.1;
-        return newTimer > 60 ? 60 : newTimer;
+        return newTimer > spinDurationLimit ? spinDurationLimit : newTimer;
       });
     }, 100);
 
@@ -439,10 +457,7 @@ const WheelOfNames: React.FC = () => {
   };
 
   const handleSettings = () => {
-    toast({
-      title: "Settings",
-      description: "Settings panel coming soon!",
-    });
+    setIsSettingsOpen(true);
   };
 
   const handleShare = () => {
@@ -564,68 +579,9 @@ const WheelOfNames: React.FC = () => {
               isResetting ? 'reset-flash' : ''
             } ${isFullscreen ? 'fullscreen-wheel' : ''}`}
           >
-            {/* Volume Controls - Bottom Left */}
-            <div className="absolute bottom-4 left-4 z-10 controls-fade-in">
-              <div className="flex flex-col items-center gap-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  onClick={toggleMute}
-                  disabled={isSpinning}
-                  className="p-1 h-8 w-8"
-                  title={`${isMuted ? 'Unmute' : 'Mute'} (Press M)`}
-                >
-                  {isMuted || volume === 0 ? (
-                    <VolumeX className="w-4 h-4 text-destructive" />
-                  ) : volume < 0.5 ? (
-                    <Volume1 className="w-4 h-4" />
-                  ) : (
-                    <Volume2 className="w-4 h-4" />
-                  )}
-                </Button>
-                
-                {/* Vertical Volume Slider */}
-                <div className="relative h-24 w-2 bg-secondary rounded-full">
-                  <input
-                    type="range"
-                    min="0"
-                    max="1"
-                    step="0.1"
-                    value={isMuted ? 0 : volume}
-                    onChange={(e) => adjustVolume(parseFloat(e.target.value))}
-                    disabled={isSpinning}
-                    className="vertical-slider"
-                    title="Volume (Use +/- keys)"
-                    style={{
-                      position: 'absolute',
-                      width: '96px',
-                      height: '8px',
-                      left: '50%',
-                      top: '50%',
-                      transform: 'translate(-50%, -50%) rotate(-90deg)',
-                      appearance: 'none',
-                      background: 'transparent',
-                      cursor: isSpinning ? 'not-allowed' : 'pointer'
-                    }}
-                  />
-                  {/* Volume level indicator */}
-                  <div 
-                    className="absolute bottom-0 left-0 w-full bg-primary rounded-full transition-all duration-200"
-                    style={{
-                      height: `${(isMuted ? 0 : volume) * 100}%`
-                    }}
-                  />
-                </div>
-                
-                <span className="text-xs text-muted-foreground">
-                  {Math.round((isMuted ? 0 : volume) * 100)}%
-                </span>
-              </div>
-            </div>
-
-            {/* Timer Bar - Bottom Left (next to volume) */}
+            {/* Timer Bar - Bottom Left */}
             {isSpinning && (
-              <div className="absolute bottom-4 left-20 z-10 controls-fade-in">
+              <div className="absolute bottom-4 left-4 z-10 controls-fade-in">
                 <div className="flex flex-col items-center gap-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
                   <div className="text-xs text-muted-foreground font-medium">Timer</div>
                   
@@ -634,7 +590,7 @@ const WheelOfNames: React.FC = () => {
                     <div 
                       className="absolute bottom-0 left-0 w-full bg-orange-500 rounded-full transition-all duration-200"
                       style={{
-                        height: `${(spinTimer / 60) * 100}%`
+                        height: `${(spinTimer / spinDurationLimit) * 100}%`
                       }}
                     />
                   </div>
@@ -978,6 +934,121 @@ const WheelOfNames: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* Settings Dialog */}
+      <Dialog open={isSettingsOpen} onOpenChange={setIsSettingsOpen}>
+        <DialogContent className="sm:max-w-[425px]">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Clock className="w-5 h-5" />
+              Wheel Settings
+            </DialogTitle>
+          </DialogHeader>
+          
+          <div className="space-y-6 py-4">
+            {/* Spin Duration Settings */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Spin Duration Limit</Label>
+              <div className="space-y-2">
+                <Slider
+                  value={[spinDurationLimit]}
+                  onValueChange={(value) => setSpinDurationLimit(value[0])}
+                  max={60}
+                  min={3}
+                  step={1}
+                  className="w-full"
+                />
+                <div className="flex justify-between text-xs text-muted-foreground">
+                  <span>3s</span>
+                  <span className="font-medium">{spinDurationLimit}s</span>
+                  <span>60s</span>
+                </div>
+              </div>
+              <p className="text-xs text-muted-foreground">
+                Maximum time the wheel can spin (affects timer bar display)
+              </p>
+            </div>
+
+            <Separator />
+
+            {/* Time Bar Preview */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Time Bar Preview</Label>
+              <div className="flex items-center gap-4 p-3 bg-secondary/50 rounded-lg">
+                <div className="text-xs text-muted-foreground">Timer</div>
+                <div className="relative h-16 w-2 bg-secondary rounded-full">
+                  <div 
+                    className="absolute bottom-0 left-0 w-full bg-orange-500 rounded-full transition-all duration-300"
+                    style={{
+                      height: `50%` // Show 50% as preview
+                    }}
+                  />
+                </div>
+                <div className="text-xs text-muted-foreground">
+                  {(spinDurationLimit / 2).toFixed(1)}s / {spinDurationLimit}s
+                </div>
+              </div>
+            </div>
+
+            <Separator />
+
+            {/* Volume Settings */}
+            <div className="space-y-3">
+              <Label className="text-sm font-medium">Volume Settings</Label>
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={toggleMute}
+                    className="p-1 h-8 w-8"
+                  >
+                    {isMuted || volume === 0 ? (
+                      <VolumeX className="w-4 h-4 text-destructive" />
+                    ) : volume < 0.5 ? (
+                      <Volume1 className="w-4 h-4" />
+                    ) : (
+                      <Volume2 className="w-4 h-4" />
+                    )}
+                  </Button>
+                  <Slider
+                    value={[isMuted ? 0 : volume]}
+                    onValueChange={(value) => adjustVolume(value[0])}
+                    max={1}
+                    min={0}
+                    step={0.1}
+                    className="flex-1"
+                  />
+                  <span className="text-xs text-muted-foreground w-10 text-right">
+                    {Math.round((isMuted ? 0 : volume) * 100)}%
+                  </span>
+                </div>
+              </div>
+            </div>
+
+            {/* Action Buttons */}
+            <div className="flex gap-2 justify-end pt-4">
+              <Button
+                variant="outline"
+                onClick={() => {
+                  setSpinDurationLimit(10);
+                  setVolume(0.5);
+                  setIsMuted(false);
+                  toast({
+                    title: "Settings Reset",
+                    description: "All settings have been reset to default values.",
+                  });
+                }}
+              >
+                Reset to Default
+              </Button>
+              <Button onClick={() => setIsSettingsOpen(false)}>
+                Done
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
