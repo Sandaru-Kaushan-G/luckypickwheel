@@ -312,11 +312,11 @@ const WheelOfNames: React.FC = () => {
     // Play spin sound
     playSound(200, 0.1);
 
-    // Calculate spin parameters based on intensity
+    // Calculate spin parameters based on intensity and duration limit
     const intensityConfig = {
-      gentle: { minSpins: 2, maxSpins: 4, duration: '4s' },
-      normal: { minSpins: 3, maxSpins: 6, duration: '3s' },
-      wild: { minSpins: 5, maxSpins: 8, duration: '5s' }
+      gentle: { minSpins: 2, maxSpins: 4 },
+      normal: { minSpins: 3, maxSpins: 6 },
+      wild: { minSpins: 5, maxSpins: 8 }
     };
 
     const config = intensityConfig[spinIntensity];
@@ -324,9 +324,13 @@ const WheelOfNames: React.FC = () => {
     const randomAngle = Math.random() * 360;
     const totalRotation = currentRotation + (spins * 360) + randomAngle;
 
+    // Use the spin duration limit from settings (convert to milliseconds)
+    const animationDuration = spinDurationLimit * 1000;
+    const durationInSeconds = `${spinDurationLimit}s`;
+
     // Apply different animation types
     if (wheelRef.current) {
-      wheelRef.current.style.setProperty('--spin-duration', config.duration);
+      wheelRef.current.style.setProperty('--spin-duration', durationInSeconds);
       wheelRef.current.style.setProperty('--final-rotation', `${totalRotation}deg`);
       
       // Remove existing animation classes
@@ -341,9 +345,6 @@ const WheelOfNames: React.FC = () => {
     const highlightInterval = setInterval(() => {
       setHighlightedSegment(Math.floor(Math.random() * names.length));
     }, 100);
-
-    // Calculate animation duration
-    const animationDuration = parseFloat(config.duration) * 1000;
 
     // Progress tracking
     const progressInterval = setInterval(() => {
@@ -401,7 +402,7 @@ const WheelOfNames: React.FC = () => {
         }
       }, 100);
     }, animationDuration);
-  }, [names, currentRotation, playSound, animationType, spinIntensity]);
+  }, [names, currentRotation, playSound, animationType, spinIntensity, spinDurationLimit]);
 
   // Generate SVG path for pie segment
   const createPath = (startAngle: number, endAngle: number, radius: number = 150, centerX: number = 160, centerY: number = 160): string => {
