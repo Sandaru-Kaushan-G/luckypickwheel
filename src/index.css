@@ -8,6 +8,72 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
+    /* Light mode colors */
+    --background: 0 0% 100%;
+    --foreground: 240 10% 3.9%;
+
+    --card: 0 0% 100%;
+    --card-foreground: 240 10% 3.9%;
+
+    --popover: 0 0% 100%;
+    --popover-foreground: 240 10% 3.9%;
+
+    --primary: 262 83% 58%;
+    --primary-foreground: 210 20% 98%;
+
+    --secondary: 240 4.8% 95.9%;
+    --secondary-foreground: 240 5.9% 10%;
+
+    --muted: 240 4.8% 95.9%;
+    --muted-foreground: 240 3.8% 46.1%;
+
+    --accent: 240 4.8% 95.9%;
+    --accent-foreground: 240 5.9% 10%;
+
+    --destructive: 0 84.2% 60.2%;
+    --destructive-foreground: 0 0% 98%;
+
+    --border: 240 5.9% 90%;
+    --input: 240 5.9% 90%;
+    --ring: 262 83% 58%;
+
+    /* Wheel colors - vibrant rainbow palette */
+    --wheel-color-1: 0 84% 60%;     /* Red */
+    --wheel-color-2: 25 95% 53%;    /* Orange */
+    --wheel-color-3: 45 93% 58%;    /* Yellow */
+    --wheel-color-4: 120 60% 50%;   /* Green */
+    --wheel-color-5: 200 95% 55%;   /* Blue */
+    --wheel-color-6: 262 83% 58%;   /* Purple */
+    --wheel-color-7: 310 60% 55%;   /* Pink */
+    --wheel-color-8: 175 70% 45%;   /* Teal */
+
+    /* Gradients - Light mode */
+    --gradient-wheel: linear-gradient(135deg, hsl(var(--primary)), hsl(262 83% 70%));
+    --gradient-background: linear-gradient(180deg, hsl(240 100% 99%), hsl(240 50% 95%));
+    --gradient-card: linear-gradient(145deg, hsl(0 0% 100%), hsl(240 20% 98%));
+
+    /* Animations */
+    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
+
+    /* Effects */
+    --shadow-glow: 0 0 30px hsl(var(--primary) / 0.2);
+    --shadow-winner: 0 0 50px hsl(45 93% 58% / 0.3);
+
+    --radius: 0.5rem;
+
+    --sidebar-background: 0 0% 98%;
+    --sidebar-foreground: 240 5.3% 26.1%;
+    --sidebar-primary: 240 5.9% 10%;
+    --sidebar-primary-foreground: 0 0% 98%;
+    --sidebar-accent: 240 4.8% 95.9%;
+    --sidebar-accent-foreground: 240 5.9% 10%;
+    --sidebar-border: 220 13% 91%;
+    --sidebar-ring: 217.2 91.2% 59.8%;
+  }
+
+  .dark {
+    /* Dark mode colors */
     --background: 240 10% 3.9%;
     --foreground: 0 0% 98%;
 
@@ -36,76 +102,15 @@ All colors MUST be HSL.
     --input: 240 3.7% 15.9%;
     --ring: 262 83% 58%;
 
-    /* Wheel colors - vibrant rainbow palette */
-    --wheel-color-1: 0 84% 60%;     /* Red */
-    --wheel-color-2: 25 95% 53%;    /* Orange */
-    --wheel-color-3: 45 93% 58%;    /* Yellow */
-    --wheel-color-4: 120 60% 50%;   /* Green */
-    --wheel-color-5: 200 95% 55%;   /* Blue */
-    --wheel-color-6: 262 83% 58%;   /* Purple */
-    --wheel-color-7: 310 60% 55%;   /* Pink */
-    --wheel-color-8: 175 70% 45%;   /* Teal */
-
-    /* Gradients */
+    /* Gradients - Dark mode */
     --gradient-wheel: linear-gradient(135deg, hsl(var(--primary)), hsl(262 83% 70%));
     --gradient-background: radial-gradient(ellipse at top, hsl(240 10% 8%), hsl(240 10% 3.9%));
     --gradient-card: linear-gradient(145deg, hsl(240 10% 6%), hsl(240 10% 10%));
 
-    /* Animations */
-    --transition-smooth: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
-    --transition-bounce: all 0.5s cubic-bezier(0.68, -0.55, 0.265, 1.55);
-
-    /* Effects */
+    /* Effects - Dark mode */
     --shadow-glow: 0 0 30px hsl(var(--primary) / 0.3);
     --shadow-winner: 0 0 50px hsl(45 93% 58% / 0.5);
 
-    --radius: 0.5rem;
-
-    --sidebar-background: 0 0% 98%;
-
-    --sidebar-foreground: 240 5.3% 26.1%;
-
-    --sidebar-primary: 240 5.9% 10%;
-
-    --sidebar-primary-foreground: 0 0% 98%;
-
-    --sidebar-accent: 240 4.8% 95.9%;
-
-    --sidebar-accent-foreground: 240 5.9% 10%;
-
-    --sidebar-border: 220 13% 91%;
-
-    --sidebar-ring: 217.2 91.2% 59.8%;
-  }
-
-  .dark {
-    --background: 222.2 84% 4.9%;
-    --foreground: 210 40% 98%;
-
-    --card: 222.2 84% 4.9%;
-    --card-foreground: 210 40% 98%;
-
-    --popover: 222.2 84% 4.9%;
-    --popover-foreground: 210 40% 98%;
-
-    --primary: 210 40% 98%;
-    --primary-foreground: 222.2 47.4% 11.2%;
-
-    --secondary: 217.2 32.6% 17.5%;
-    --secondary-foreground: 210 40% 98%;
-
-    --muted: 217.2 32.6% 17.5%;
-    --muted-foreground: 215 20.2% 65.1%;
-
-    --accent: 217.2 32.6% 17.5%;
-    --accent-foreground: 210 40% 98%;
-
-    --destructive: 0 62.8% 30.6%;
-    --destructive-foreground: 210 40% 98%;
-
-    --border: 217.2 32.6% 17.5%;
-    --input: 217.2 32.6% 17.5%;
-    --ring: 212.7 26.8% 83.9%;
     --sidebar-background: 240 5.9% 10%;
     --sidebar-foreground: 240 4.8% 95.9%;
     --sidebar-primary: 224.3 76.3% 48%;

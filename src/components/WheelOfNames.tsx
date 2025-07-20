@@ -30,9 +30,27 @@ const WheelOfNames: React.FC = () => {
   const [isSpinning, setIsSpinning] = useState(false);
   const [winner, setWinner] = useState<string | null>(null);
   const [currentRotation, setCurrentRotation] = useState(0);
-  const [isDarkMode, setIsDarkMode] = useState(true);
+  const [isDarkMode, setIsDarkMode] = useState(() => {
+    // Check if user has a saved preference, otherwise default to dark
+    if (typeof window !== 'undefined') {
+      const saved = localStorage.getItem('theme');
+      return saved ? saved === 'dark' : true;
+    }
+    return true;
+  });
   const wheelRef = useRef<SVGGElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
+
+  // Apply theme to document
+  useEffect(() => {
+    const root = document.documentElement;
+    if (isDarkMode) {
+      root.classList.add('dark');
+    } else {
+      root.classList.remove('dark');
+    }
+    localStorage.setItem('theme', isDarkMode ? 'dark' : 'light');
+  }, [isDarkMode]);
 
   // Create wheel segments based on names
   const createSegments = useCallback((): WheelSegment[] => {
@@ -235,17 +253,33 @@ const WheelOfNames: React.FC = () => {
   };
 
   const handleShare = () => {
-    if (navigator.share) {
-      navigator.share({
-        title: 'Wheel of Names',
-        text: `Check out my wheel with ${names.length} names!`,
-        url: window.location.href,
-      });
-    } else {
-      navigator.clipboard.writeText(window.location.href);
+    try {
+      if (navigator.share) {
+        navigator.share({
+          title: 'Wheel of Names',
+          text: `Check out my wheel with ${names.length} names!`,
+          url: window.location.href,
+        }).catch((error) => {
+          // If share fails, fall back to clipboard
+          navigator.clipboard.writeText(window.location.href);
+          toast({
+            title: "Link copied",
+            description: "Wheel link has been copied to clipboard.",
+          });
+        });
+      } else {
+        // Fallback for browsers that don't support Web Share API
+        navigator.clipboard.writeText(window.location.href);
+        toast({
+          title: "Link copied",
+          description: "Wheel link has been copied to clipboard.",
+        });
+      }
+    } catch (error) {
       toast({
-        title: "Link copied",
-        description: "Wheel link has been copied to clipboard.",
+        title: "Share failed",
+        description: "Unable to share or copy link.",
+        variant: "destructive",
       });
     }
   };
