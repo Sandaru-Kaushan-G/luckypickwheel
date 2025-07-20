@@ -3,7 +3,7 @@ import { Card } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Progress } from '@/components/ui/progress';
-import { Trash2, Plus, RotateCcw } from 'lucide-react';
+import { Trash2, Plus, RotateCcw, Maximize, Minimize, Volume2, VolumeX, Volume1 } from 'lucide-react';
 import { toast } from '@/hooks/use-toast';
 import Navbar from './Navbar';
 
@@ -37,6 +37,10 @@ const WheelOfNames: React.FC = () => {
   const [spinIntensity, setSpinIntensity] = useState<'gentle' | 'normal' | 'wild'>('normal');
   const [spinProgress, setSpinProgress] = useState(0);
   const [isResetting, setIsResetting] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const [volume, setVolume] = useState(0.5); // Volume from 0 to 1
+  const [isMuted, setIsMuted] = useState(false);
+  const [spinTimer, setSpinTimer] = useState(0); // Timer for spin duration in seconds
   const [isDarkMode, setIsDarkMode] = useState(() => {
     // Check if user has a saved preference, otherwise default to dark
     if (typeof window !== 'undefined') {
@@ -48,6 +52,7 @@ const WheelOfNames: React.FC = () => {
   const wheelRef = useRef<SVGGElement>(null);
   const audioContextRef = useRef<AudioContext | null>(null);
   const confettiRef = useRef<HTMLDivElement>(null);
+  const wheelContainerRef = useRef<HTMLDivElement>(null);
 
   // Apply theme to document
   useEffect(() => {
@@ -77,6 +82,8 @@ const WheelOfNames: React.FC = () => {
 
   // Play sound effect
   const playSound = useCallback((frequency: number, duration: number) => {
+    if (isMuted || volume === 0) return; // Don't play if muted or volume is 0
+    
     if (!audioContextRef.current) {
       try {
         audioContextRef.current = new (window.AudioContext || (window as any).webkitAudioContext)();
@@ -93,12 +100,12 @@ const WheelOfNames: React.FC = () => {
     gainNode.connect(audioContextRef.current.destination);
     
     oscillator.frequency.setValueAtTime(frequency, audioContextRef.current.currentTime);
-    gainNode.gain.setValueAtTime(0.1, audioContextRef.current.currentTime);
+    gainNode.gain.setValueAtTime(0.1 * volume, audioContextRef.current.currentTime); // Apply volume
     gainNode.gain.exponentialRampToValueAtTime(0.01, audioContextRef.current.currentTime + duration);
     
     oscillator.start(audioContextRef.current.currentTime);
     oscillator.stop(audioContextRef.current.currentTime + duration);
-  }, []);
+  }, [isMuted, volume]);
 
   // Add new name
   const addName = useCallback(() => {
@@ -147,6 +154,7 @@ const WheelOfNames: React.FC = () => {
     setShowConfetti(false);
     setHighlightedSegment(null);
     setSpinProgress(0);
+    setSpinTimer(0);
     
     // Reset animation settings to defaults
     setAnimationType('elastic');
@@ -176,6 +184,96 @@ const WheelOfNames: React.FC = () => {
     }, 600);
   }, []);
 
+  // Fullscreen functionality
+  const toggleFullscreen = useCallback(() => {
+    if (!wheelContainerRef.current) return;
+
+    if (!document.fullscreenElement) {
+      wheelContainerRef.current.requestFullscreen().then(() => {
+        setIsFullscreen(true);
+        toast({
+          title: "Fullscreen Mode",
+          description: "Press ESC to exit fullscreen",
+        });
+      }).catch((err) => {
+        console.error('Error attempting to enable fullscreen:', err);
+        toast({
+          title: "Fullscreen Error",
+          description: "Could not enter fullscreen mode",
+          variant: "destructive",
+        });
+      });
+    } else {
+      document.exitFullscreen().then(() => {
+        setIsFullscreen(false);
+      });
+    }
+  }, []);
+
+  // Volume controls
+  const toggleMute = useCallback(() => {
+    setIsMuted(!isMuted);
+    toast({
+      title: isMuted ? "Sound On" : "Sound Off",
+      description: `Volume ${isMuted ? 'enabled' : 'muted'}`,
+    });
+  }, [isMuted]);
+
+  const adjustVolume = useCallback((newVolume: number) => {
+    const clampedVolume = Math.max(0, Math.min(1, newVolume));
+    setVolume(clampedVolume);
+    if (clampedVolume === 0) {
+      setIsMuted(true);
+    } else if (isMuted) {
+      setIsMuted(false);
+    }
+  }, [isMuted]);
+
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (event: KeyboardEvent) => {
+      // Don't trigger shortcuts if user is typing in an input
+      if (event.target instanceof HTMLInputElement) return;
+
+      switch (event.key.toLowerCase()) {
+        case 'f':
+          if (!isSpinning) {
+            event.preventDefault();
+            toggleFullscreen();
+          }
+          break;
+        case 'm':
+          event.preventDefault();
+          toggleMute();
+          break;
+        case 'arrowup':
+        case '+':
+        case '=':
+          event.preventDefault();
+          adjustVolume(volume + 0.1);
+          break;
+        case 'arrowdown':
+        case '-':
+          event.preventDefault();
+          adjustVolume(volume - 0.1);
+          break;
+      }
+    };
+
+    document.addEventListener('keydown', handleKeyPress);
+    return () => document.removeEventListener('keydown', handleKeyPress);
+  }, [volume, isSpinning, toggleFullscreen, toggleMute, adjustVolume]);
+
   // Spin the wheel
   const spinWheel = useCallback(() => {
     if (names.length < 2) {
@@ -191,6 +289,7 @@ const WheelOfNames: React.FC = () => {
     setWinner(null);
     setShowConfetti(false);
     setHighlightedSegment(null);
+    setSpinTimer(0); // Reset timer
 
     // Play spin sound
     playSound(200, 0.1);
@@ -236,11 +335,21 @@ const WheelOfNames: React.FC = () => {
       });
     }, 100);
 
+    // Timer tracking (up to 60 seconds max)
+    const timerInterval = setInterval(() => {
+      setSpinTimer((prev) => {
+        const newTimer = prev + 0.1;
+        return newTimer > 60 ? 60 : newTimer;
+      });
+    }, 100);
+
     // Calculate winner after animation
     setTimeout(() => {
       clearInterval(highlightInterval);
       clearInterval(progressInterval);
+      clearInterval(timerInterval);
       setSpinProgress(0);
+      setSpinTimer(0);
       
       const normalizedAngle = (360 - (totalRotation % 360)) % 360;
       const segmentAngle = 360 / names.length;
@@ -277,19 +386,19 @@ const WheelOfNames: React.FC = () => {
   }, [names, currentRotation, playSound, animationType, spinIntensity]);
 
   // Generate SVG path for pie segment
-  const createPath = (startAngle: number, endAngle: number, radius: number = 150): string => {
+  const createPath = (startAngle: number, endAngle: number, radius: number = 150, centerX: number = 160, centerY: number = 160): string => {
     const startAngleRad = (startAngle - 90) * Math.PI / 180;
     const endAngleRad = (endAngle - 90) * Math.PI / 180;
     
-    const x1 = 160 + radius * Math.cos(startAngleRad);
-    const y1 = 160 + radius * Math.sin(startAngleRad);
-    const x2 = 160 + radius * Math.cos(endAngleRad);
-    const y2 = 160 + radius * Math.sin(endAngleRad);
+    const x1 = centerX + radius * Math.cos(startAngleRad);
+    const y1 = centerY + radius * Math.sin(startAngleRad);
+    const x2 = centerX + radius * Math.cos(endAngleRad);
+    const y2 = centerY + radius * Math.sin(endAngleRad);
     
     const largeArcFlag = endAngle - startAngle <= 180 ? "0" : "1";
     
     return [
-      "M", 160, 160,
+      "M", centerX, centerY,
       "L", x1, y1,
       "A", radius, radius, 0, largeArcFlag, 1, x2, y2,
       "Z"
@@ -449,22 +558,127 @@ const WheelOfNames: React.FC = () => {
           </Card>
 
           {/* Wheel */}
-          <Card className={`p-6 bg-gradient-card interactive-hover ${
-            isResetting ? 'reset-flash' : ''
-          }`}>
+          <Card 
+            ref={wheelContainerRef}
+            className={`p-6 bg-gradient-card interactive-hover relative ${
+              isResetting ? 'reset-flash' : ''
+            } ${isFullscreen ? 'fullscreen-wheel' : ''}`}
+          >
+            {/* Volume Controls - Bottom Left */}
+            <div className="absolute bottom-4 left-4 z-10 controls-fade-in">
+              <div className="flex flex-col items-center gap-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                <Button
+                  variant="ghost"
+                  size="sm"
+                  onClick={toggleMute}
+                  disabled={isSpinning}
+                  className="p-1 h-8 w-8"
+                  title={`${isMuted ? 'Unmute' : 'Mute'} (Press M)`}
+                >
+                  {isMuted || volume === 0 ? (
+                    <VolumeX className="w-4 h-4 text-destructive" />
+                  ) : volume < 0.5 ? (
+                    <Volume1 className="w-4 h-4" />
+                  ) : (
+                    <Volume2 className="w-4 h-4" />
+                  )}
+                </Button>
+                
+                {/* Vertical Volume Slider */}
+                <div className="relative h-24 w-2 bg-secondary rounded-full">
+                  <input
+                    type="range"
+                    min="0"
+                    max="1"
+                    step="0.1"
+                    value={isMuted ? 0 : volume}
+                    onChange={(e) => adjustVolume(parseFloat(e.target.value))}
+                    disabled={isSpinning}
+                    className="vertical-slider"
+                    title="Volume (Use +/- keys)"
+                    style={{
+                      position: 'absolute',
+                      width: '96px',
+                      height: '8px',
+                      left: '50%',
+                      top: '50%',
+                      transform: 'translate(-50%, -50%) rotate(-90deg)',
+                      appearance: 'none',
+                      background: 'transparent',
+                      cursor: isSpinning ? 'not-allowed' : 'pointer'
+                    }}
+                  />
+                  {/* Volume level indicator */}
+                  <div 
+                    className="absolute bottom-0 left-0 w-full bg-primary rounded-full transition-all duration-200"
+                    style={{
+                      height: `${(isMuted ? 0 : volume) * 100}%`
+                    }}
+                  />
+                </div>
+                
+                <span className="text-xs text-muted-foreground">
+                  {Math.round((isMuted ? 0 : volume) * 100)}%
+                </span>
+              </div>
+            </div>
+
+            {/* Timer Bar - Bottom Left (next to volume) */}
+            {isSpinning && (
+              <div className="absolute bottom-4 left-20 z-10 controls-fade-in">
+                <div className="flex flex-col items-center gap-2 bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                  <div className="text-xs text-muted-foreground font-medium">Timer</div>
+                  
+                  {/* Vertical Timer Bar */}
+                  <div className="relative h-24 w-2 bg-secondary rounded-full">
+                    <div 
+                      className="absolute bottom-0 left-0 w-full bg-orange-500 rounded-full transition-all duration-200"
+                      style={{
+                        height: `${(spinTimer / 60) * 100}%`
+                      }}
+                    />
+                  </div>
+                  
+                  <span className="text-xs text-muted-foreground">
+                    {spinTimer.toFixed(1)}s
+                  </span>
+                </div>
+              </div>
+            )}
+
+            {/* Fullscreen Button - Bottom Right */}
+            <div className="absolute bottom-4 right-4 z-10 controls-fade-in">
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={toggleFullscreen}
+                disabled={isSpinning}
+                className="p-2 h-8 w-8 bg-background/90 backdrop-blur-sm shadow-lg"
+                title={`${isFullscreen ? 'Exit' : 'Enter'} Fullscreen (Press F)`}
+              >
+                {isFullscreen ? (
+                  <Minimize className="w-4 h-4" />
+                ) : (
+                  <Maximize className="w-4 h-4" />
+                )}
+              </Button>
+            </div>
+
             <div className="text-center">
               {/* Winner Display */}
               {winner && (
-                <div className="mb-6 winner-celebration">
-                  <div className="text-6xl mb-2">🎉</div>
-                  <h3 className="text-2xl font-bold text-gradient winner-text">
+                <div className={`mb-6 winner-celebration ${isFullscreen ? 'fullscreen-winner' : ''}`}>
+                  <div className={`mb-2 ${isFullscreen ? 'text-8xl' : 'text-6xl'}`}>🎉</div>
+                  <h3 className={`font-bold text-gradient winner-text ${
+                    isFullscreen ? 'text-4xl lg:text-6xl' : 'text-2xl'
+                  }`}>
                     Winner: {winner}
                   </h3>
                 </div>
               )}
 
-              {/* Spinning Progress */}
-              {isSpinning && (
+              {/* Spinning Progress - Hidden in fullscreen */}
+              {isSpinning && !isFullscreen && (
                 <div className="mb-6">
                   <div className="flex items-center justify-center gap-3 mb-2">
                     <span className="text-sm font-medium">Spinning...</span>
@@ -475,23 +689,47 @@ const WheelOfNames: React.FC = () => {
               )}
 
               {/* Wheel SVG */}
-              <div className={`relative mx-auto w-80 h-80 mb-6 ${
-                !isSpinning ? 'wheel-float' : ''
-              }`}>
-                {/* Hint text for center button */}
-                {names.length >= 2 && !isSpinning && !winner && (
+              <div className={`relative mx-auto mb-6 ${
+                isFullscreen ? 'w-96 h-96 lg:w-[500px] lg:h-[500px]' : 'w-80 h-80'
+              } ${!isSpinning ? 'wheel-float' : ''}`}>
+                {/* Hint text for center button - Hidden in fullscreen */}
+                {names.length >= 2 && !isSpinning && !winner && !isFullscreen && (
                   <div className="absolute -bottom-8 left-1/2 transform -translate-x-1/2 text-sm text-muted-foreground animate-pulse">
                     Click center to spin
                   </div>
                 )}
-                <svg width="320" height="320" className="mx-auto drop-shadow-2xl">
+                
+                {/* Keyboard shortcuts help (fullscreen mode only) */}
+                {isFullscreen && (
+                  <div className="absolute -bottom-16 left-1/2 transform -translate-x-1/2 text-xs text-muted-foreground text-center">
+                    <div className="bg-background/90 backdrop-blur-sm rounded-lg p-2 shadow-lg">
+                      Press <kbd className="px-1 py-0.5 bg-secondary rounded text-xs">F</kbd> for fullscreen • 
+                      <kbd className="px-1 py-0.5 bg-secondary rounded text-xs mx-1">M</kbd> to mute • 
+                      <kbd className="px-1 py-0.5 bg-secondary rounded text-xs">+/-</kbd> for volume • 
+                      <kbd className="px-1 py-0.5 bg-secondary rounded text-xs">ESC</kbd> to exit
+                    </div>
+                  </div>
+                )}
+                <svg 
+                  width={isFullscreen ? "400" : "320"} 
+                  height={isFullscreen ? "400" : "320"} 
+                  className="mx-auto drop-shadow-2xl"
+                >
                   {/* Wheel segments */}
-                  <g ref={wheelRef} style={{ transformOrigin: '160px 160px' }}>
+                  <g ref={wheelRef} style={{ 
+                    transformOrigin: isFullscreen ? '200px 200px' : '160px 160px' 
+                  }}>
                     {segments.map((segment, index) => (
                       <g key={index}>
                         {/* Segment */}
                         <path
-                          d={createPath(segment.startAngle, segment.endAngle)}
+                          d={createPath(
+                            segment.startAngle, 
+                            segment.endAngle, 
+                            isFullscreen ? 190 : 150,
+                            isFullscreen ? 200 : 160,
+                            isFullscreen ? 200 : 160
+                          )}
                           fill={segment.color}
                           stroke="#1a1a1a"
                           strokeWidth="2"
@@ -506,12 +744,12 @@ const WheelOfNames: React.FC = () => {
                         />
                         {/* Text */}
                         <text
-                          x={160 + 100 * Math.cos(((segment.startAngle + segment.endAngle) / 2 - 90) * Math.PI / 180)}
-                          y={160 + 100 * Math.sin(((segment.startAngle + segment.endAngle) / 2 - 90) * Math.PI / 180)}
+                          x={(isFullscreen ? 200 : 160) + (isFullscreen ? 130 : 100) * Math.cos(((segment.startAngle + segment.endAngle) / 2 - 90) * Math.PI / 180)}
+                          y={(isFullscreen ? 200 : 160) + (isFullscreen ? 130 : 100) * Math.sin(((segment.startAngle + segment.endAngle) / 2 - 90) * Math.PI / 180)}
                           textAnchor="middle"
                           dominantBaseline="middle"
                           fill="white"
-                          fontSize="14"
+                          fontSize={isFullscreen ? "18" : "14"}
                           fontWeight="bold"
                           className={`pointer-events-none select-none transition-all duration-200 ${
                             highlightedSegment === index ? 'animate-pulse' : ''
@@ -537,9 +775,9 @@ const WheelOfNames: React.FC = () => {
                   >
                     {/* Main button circle */}
                     <circle
-                      cx="160"
-                      cy="160"
-                      r="35"
+                      cx={isFullscreen ? "200" : "160"}
+                      cy={isFullscreen ? "200" : "160"}
+                      r={isFullscreen ? "45" : "35"}
                       fill="hsl(var(--primary))"
                       stroke="#1a1a1a"
                       strokeWidth="3"
@@ -553,24 +791,24 @@ const WheelOfNames: React.FC = () => {
                     
                     {/* Animated ring when spinning */}
                     <circle
-                      cx="160"
-                      cy="160"
-                      r="30"
+                      cx={isFullscreen ? "200" : "160"}
+                      cy={isFullscreen ? "200" : "160"}
+                      r={isFullscreen ? "38" : "30"}
                       fill="none"
                       stroke="rgba(255,255,255,0.4)"
                       strokeWidth="3"
-                      strokeDasharray="94 94"
+                      strokeDasharray={isFullscreen ? "120 120" : "94 94"}
                       className={isSpinning ? 'spin-ring' : 'opacity-60'}
                       style={{
-                        transformOrigin: '160px 160px'
+                        transformOrigin: isFullscreen ? '200px 200px' : '160px 160px'
                       }}
                     />
                     
                     {/* Inner glow circle */}
                     <circle
-                      cx="160"
-                      cy="160"
-                      r="25"
+                      cx={isFullscreen ? "200" : "160"}
+                      cy={isFullscreen ? "200" : "160"}
+                      r={isFullscreen ? "32" : "25"}
                       fill="none"
                       stroke="rgba(255,255,255,0.2)"
                       strokeWidth="1"
@@ -579,12 +817,12 @@ const WheelOfNames: React.FC = () => {
                     
                     {/* Spin text */}
                     <text
-                      x="160"
-                      y="165"
+                      x={isFullscreen ? "200" : "160"}
+                      y={isFullscreen ? "207" : "165"}
                       textAnchor="middle"
                       dominantBaseline="middle"
                       fill="white"
-                      fontSize="14"
+                      fontSize={isFullscreen ? "18" : "14"}
                       fontWeight="bold"
                       className={`pointer-events-none select-none transition-all duration-300 ${
                         isSpinning ? 'animate-pulse' : ''
@@ -600,17 +838,17 @@ const WheelOfNames: React.FC = () => {
                     {/* Decorative dots around the button */}
                     {!isSpinning && names.length >= 2 && (
                       <>
-                        <circle cx="160" cy="118" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" />
-                        <circle cx="202" cy="160" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '0.5s'}} />
-                        <circle cx="160" cy="202" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1s'}} />
-                        <circle cx="118" cy="160" r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1.5s'}} />
+                        <circle cx={isFullscreen ? "200" : "160"} cy={isFullscreen ? "148" : "118"} r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" />
+                        <circle cx={isFullscreen ? "252" : "202"} cy={isFullscreen ? "200" : "160"} r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '0.5s'}} />
+                        <circle cx={isFullscreen ? "200" : "160"} cy={isFullscreen ? "252" : "202"} r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1s'}} />
+                        <circle cx={isFullscreen ? "148" : "118"} cy={isFullscreen ? "200" : "160"} r="2" fill="rgba(255,255,255,0.6)" className="animate-pulse" style={{animationDelay: '1.5s'}} />
                       </>
                     )}
                   </g>
                   
                   {/* Pointer */}
                   <polygon
-                    points="160,0 175,25 145,25"
+                    points={isFullscreen ? "200,0 220,32 180,32" : "160,0 175,25 145,25"}
                     fill="hsl(var(--primary))"
                     stroke="#1a1a1a"
                     strokeWidth="2"
@@ -618,62 +856,64 @@ const WheelOfNames: React.FC = () => {
                 </svg>
               </div>
 
-              {/* Animation Controls */}
-              <div className={`mb-6 space-y-4 transition-all duration-500 ${
-                isResetting ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
-              }`}>
-                <div className="text-center">
-                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">
-                    Animation Style {isResetting && '(Resetting...)'}
-                  </h3>
-                  <div className="flex justify-center gap-2 flex-wrap">
-                    {[
-                      { type: 'classic', icon: '⚙️' },
-                      { type: 'elastic', icon: '🎯' },
-                      { type: 'bounce', icon: '🏀' },
-                      { type: 'smooth', icon: '✨' }
-                    ].map(({ type, icon }) => (
-                      <Button
-                        key={type}
-                        variant={animationType === type ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setAnimationType(type as any)}
-                        disabled={isSpinning || isResetting}
-                        className={`capitalize transition-all duration-300 ${
-                          isResetting && animationType !== type ? 'animate-pulse' : ''
-                        }`}
-                      >
-                        {icon} {type}
-                      </Button>
-                    ))}
+              {/* Animation Controls - Hidden in fullscreen */}
+              {!isFullscreen && (
+                <div className={`mb-6 space-y-4 transition-all duration-500 ${
+                  isResetting ? 'opacity-50 scale-95' : 'opacity-100 scale-100'
+                }`}>
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                      Animation Style {isResetting && '(Resetting...)'}
+                    </h3>
+                    <div className="flex justify-center gap-2 flex-wrap">
+                      {[
+                        { type: 'classic', icon: '⚙️' },
+                        { type: 'elastic', icon: '🎯' },
+                        { type: 'bounce', icon: '🏀' },
+                        { type: 'smooth', icon: '✨' }
+                      ].map(({ type, icon }) => (
+                        <Button
+                          key={type}
+                          variant={animationType === type ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setAnimationType(type as any)}
+                          disabled={isSpinning || isResetting}
+                          className={`capitalize transition-all duration-300 ${
+                            isResetting && animationType !== type ? 'animate-pulse' : ''
+                          }`}
+                        >
+                          {icon} {type}
+                        </Button>
+                      ))}
+                    </div>
+                  </div>
+                  
+                  <div className="text-center">
+                    <h3 className="text-sm font-medium mb-3 text-muted-foreground">
+                      Spin Intensity {isResetting && '(Resetting...)'}
+                    </h3>
+                    <div className="flex justify-center gap-2">
+                      {['gentle', 'normal', 'wild'].map((intensity) => (
+                        <Button
+                          key={intensity}
+                          variant={spinIntensity === intensity ? 'default' : 'outline'}
+                          size="sm"
+                          onClick={() => setSpinIntensity(intensity as any)}
+                          disabled={isSpinning || isResetting}
+                          className={`capitalize transition-all duration-300 ${
+                            isResetting && spinIntensity !== intensity ? 'animate-pulse' : ''
+                          }`}
+                        >
+                          {intensity === 'gentle' && '🐢'}
+                          {intensity === 'normal' && '⚡'}
+                          {intensity === 'wild' && '🚀'}
+                          {' '}{intensity}
+                        </Button>
+                      ))}
+                    </div>
                   </div>
                 </div>
-                
-                <div className="text-center">
-                  <h3 className="text-sm font-medium mb-3 text-muted-foreground">
-                    Spin Intensity {isResetting && '(Resetting...)'}
-                  </h3>
-                  <div className="flex justify-center gap-2">
-                    {['gentle', 'normal', 'wild'].map((intensity) => (
-                      <Button
-                        key={intensity}
-                        variant={spinIntensity === intensity ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setSpinIntensity(intensity as any)}
-                        disabled={isSpinning || isResetting}
-                        className={`capitalize transition-all duration-300 ${
-                          isResetting && spinIntensity !== intensity ? 'animate-pulse' : ''
-                        }`}
-                      >
-                        {intensity === 'gentle' && '🐢'}
-                        {intensity === 'normal' && '⚡'}
-                        {intensity === 'wild' && '🚀'}
-                        {' '}{intensity}
-                      </Button>
-                    ))}
-                  </div>
-                </div>
-              </div>
+              )}
 
               {/* Confetti Effect */}
               {showConfetti && (
@@ -696,28 +936,42 @@ const WheelOfNames: React.FC = () => {
                 </div>
               )}
 
-              {/* Controls */}
+              {/* Controls - Simplified in fullscreen */}
               <div className="flex gap-4 justify-center">
-                <Button
-                  onClick={spinWheel}
-                  disabled={isSpinning || names.length < 2}
-                  variant="outline"
-                  size="lg"
-                  className="min-w-32"
-                >
-                  {isSpinning ? 'Spinning...' : 'Spin Wheel'}
-                </Button>
-                
-                <Button
-                  variant="outline"
-                  onClick={resetWheel}
-                  disabled={isSpinning || isResetting}
-                  size="lg"
-                  className={isResetting ? 'button-press' : ''}
-                >
-                  <RotateCcw className={`w-4 h-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
-                  {isResetting ? 'Resetting...' : 'Reset'}
-                </Button>
+                {!isFullscreen ? (
+                  <>
+                    <Button
+                      onClick={spinWheel}
+                      disabled={isSpinning || names.length < 2}
+                      variant="outline"
+                      size="lg"
+                      className="min-w-32"
+                    >
+                      {isSpinning ? 'Spinning...' : 'Spin Wheel'}
+                    </Button>
+                    
+                    <Button
+                      variant="outline"
+                      onClick={resetWheel}
+                      disabled={isSpinning || isResetting}
+                      size="lg"
+                      className={isResetting ? 'button-press' : ''}
+                    >
+                      <RotateCcw className={`w-4 h-4 mr-2 ${isResetting ? 'animate-spin' : ''}`} />
+                      {isResetting ? 'Resetting...' : 'Reset'}
+                    </Button>
+                  </>
+                ) : (
+                  <Button
+                    onClick={spinWheel}
+                    disabled={isSpinning || names.length < 2}
+                    variant="outline"
+                    size="lg"
+                    className="min-w-40 text-lg px-8 py-3"
+                  >
+                    {isSpinning ? 'Spinning...' : 'Spin Wheel'}
+                  </Button>
+                )}
               </div>
             </div>
           </Card>
