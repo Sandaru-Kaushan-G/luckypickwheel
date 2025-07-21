@@ -12,5 +12,5 @@ Allow: /
 
 User-agent: *
 Allow: /
-Sitemap: https://yourdomain.com/sitemap.xml
+Sitemap: https://luckypickwheel.vercel.app/sitemap.xml
 
