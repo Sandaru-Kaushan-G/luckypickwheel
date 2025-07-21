@@ -275,6 +275,81 @@ All colors MUST be HSL.
     transform: translateY(0px) scale(0.98);
   }
 
+  /* Soft input styling for name entry */
+  .soft-input {
+    background: linear-gradient(135deg, hsl(210 40% 98%), hsl(200 30% 96%));
+    border-radius: 1rem;
+    border: 1px solid hsl(210 20% 90%);
+    box-shadow: 0 2px 8px hsl(210 15% 85% / 0.3), inset 0 1px 2px hsl(0 0% 100% / 0.5);
+    transition: var(--transition-smooth);
+    position: relative;
+    color: hsl(210 20% 25%);
+  }
+
+  .soft-input::placeholder {
+    color: hsl(210 15% 55%);
+  }
+
+  .soft-input:focus {
+    background: linear-gradient(135deg, hsl(210 40% 99%), hsl(200 30% 97%));
+    border-color: hsl(210 30% 80%);
+    box-shadow: 0 4px 12px hsl(210 15% 80% / 0.4), inset 0 1px 3px hsl(0 0% 100% / 0.6), 0 0 0 2px hsl(210 20% 90% / 0.3);
+    transform: translateY(-1px);
+  }
+
+  .soft-input:hover:not(:focus) {
+    background: linear-gradient(135deg, hsl(210 40% 97%), hsl(200 30% 95%));
+    border-color: hsl(210 25% 85%);
+    box-shadow: 0 3px 10px hsl(210 15% 80% / 0.35), inset 0 1px 2px hsl(0 0% 100% / 0.5);
+  }
+
+  .soft-input:disabled {
+    background: linear-gradient(135deg, hsl(210 15% 95%), hsl(200 15% 93%));
+    border-color: hsl(210 15% 88%);
+    color: hsl(210 15% 50%);
+    cursor: not-allowed;
+  }
+
+  .soft-input:disabled::placeholder {
+    color: hsl(210 10% 65%);
+  }
+
+  /* Soft input dark mode styling */
+  .dark .soft-input {
+    background: linear-gradient(135deg, hsl(240 8% 12%), hsl(240 6% 10%));
+    border: 1px solid hsl(240 6% 20%);
+    box-shadow: 0 2px 8px hsl(240 10% 3% / 0.4), inset 0 1px 2px hsl(0 0% 100% / 0.05);
+    color: hsl(0 0% 92%);
+  }
+
+  .dark .soft-input::placeholder {
+    color: hsl(240 5% 60%);
+  }
+
+  .dark .soft-input:focus {
+    background: linear-gradient(135deg, hsl(240 8% 14%), hsl(240 6% 12%));
+    border-color: hsl(240 10% 35%);
+    box-shadow: 0 4px 12px hsl(240 10% 3% / 0.5), inset 0 1px 3px hsl(0 0% 100% / 0.08), 0 0 0 2px hsl(240 6% 25% / 0.4);
+    transform: translateY(-1px);
+  }
+
+  .dark .soft-input:hover:not(:focus) {
+    background: linear-gradient(135deg, hsl(240 8% 13%), hsl(240 6% 11%));
+    border-color: hsl(240 8% 25%);
+    box-shadow: 0 3px 10px hsl(240 10% 3% / 0.45), inset 0 1px 2px hsl(0 0% 100% / 0.06);
+  }
+
+  .dark .soft-input:disabled {
+    background: linear-gradient(135deg, hsl(240 6% 8%), hsl(240 4% 6%));
+    border-color: hsl(240 5% 15%);
+    color: hsl(240 5% 50%);
+    cursor: not-allowed;
+  }
+
+  .dark .soft-input:disabled::placeholder {
+    color: hsl(240 5% 45%);
+  }
+
   /* Drag and drop styles */
   .draggable-item {
     transition: var(--transition-smooth);

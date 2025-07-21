@@ -585,7 +585,7 @@ const WheelOfNames: React.FC = () => {
                 onKeyPress={handleKeyPress}
                 placeholder="Enter a name..."
                 disabled={isSpinning}
-                className="flex-1 modern-button text-sm sm:text-base"
+                className="flex-1 soft-input text-sm sm:text-base"
               />
               <Button 
                 onClick={addName} 
